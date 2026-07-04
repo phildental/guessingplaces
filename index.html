@@ -26,11 +26,12 @@
 
         html,
         body {
-            height: 100%;
+            min-height: 100%;
             margin: 0;
             background: var(--bg);
             color: var(--text);
             font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            overflow-x: hidden;
         }
 
         button,
@@ -88,10 +89,10 @@
         }
 
         .app {
-            min-height: 100%;
+            min-height: 100dvh;
             display: grid;
-            grid-template-columns: 1fr 410px;
-            grid-template-rows: 74px 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(340px, 410px);
+            grid-template-rows: auto minmax(0, 1fr);
             grid-template-areas:
                 "top top"
                 "pano side";
@@ -175,9 +176,12 @@
 
         #pano {
             grid-area: pano;
-            min-height: calc(100vh - 74px);
+            height: calc(100dvh - 74px);
+            min-height: 0;
             background: #020617;
             position: relative;
+            overflow: hidden;
+            scroll-margin-top: 92px;
         }
 
         .pano-cover {
@@ -221,10 +225,12 @@
             background: var(--panel);
             border-left: 1px solid var(--border);
             display: grid;
-            grid-template-rows: auto 1fr auto;
-            min-height: calc(100vh - 74px);
+            grid-template-rows: auto minmax(260px, 1fr) auto;
+            height: calc(100dvh - 74px);
+            min-height: 0;
             position: relative;
             z-index: 3;
+            overflow: hidden;
         }
 
         .controls {
@@ -262,17 +268,20 @@
         }
 
         #map {
-            min-height: 330px;
+            min-height: 260px;
             height: 100%;
             background: #0b1220;
+            scroll-margin-top: 92px;
         }
 
         .result {
             border-top: 1px solid var(--border);
             background: linear-gradient(180deg, rgba(31, 41, 55, .9), rgba(17, 24, 39, .98));
             padding: 16px;
-            max-height: 42vh;
+            max-height: 38dvh;
             overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            scroll-margin-top: 92px;
         }
 
         .result h2,
@@ -402,6 +411,10 @@
             display: none !important;
         }
 
+        .mobile-jump {
+            display: none;
+        }
+
         .toast {
             position: fixed;
             left: 50%;
@@ -419,17 +432,16 @@
 
         @media (max-width: 980px) {
             .app {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto 56vh auto;
-                grid-template-areas:
-                    "top"
-                    "pano"
-                    "side";
+                display: block;
+                min-height: 100dvh;
             }
 
             header {
+                position: sticky;
+                top: 0;
                 align-items: flex-start;
                 flex-direction: column;
+                z-index: 12;
             }
 
             .status {
@@ -437,17 +449,53 @@
             }
 
             #pano {
-                min-height: 56vh;
+                height: clamp(320px, 52svh, 620px);
+                min-height: 320px;
             }
 
             .side {
-                min-height: auto;
+                display: block;
+                height: auto;
+                min-height: 0;
                 border-left: 0;
                 border-top: 1px solid var(--border);
+                overflow: visible;
             }
 
             #map {
-                height: 360px;
+                height: clamp(320px, 48svh, 540px);
+                min-height: 320px;
+            }
+
+            .result {
+                max-height: none;
+                overflow: visible;
+                padding-bottom: 82px;
+            }
+
+            .mobile-jump {
+                position: sticky;
+                bottom: 0;
+                z-index: 30;
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+                padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+                background: rgba(15, 23, 42, .94);
+                border-top: 1px solid var(--border);
+                backdrop-filter: blur(14px);
+            }
+
+            .mobile-jump a {
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 10px 8px;
+                color: var(--text);
+                background: rgba(255, 255, 255, .06);
+                text-decoration: none;
+                text-align: center;
+                font-weight: 900;
+                font-size: 13px;
             }
         }
 
@@ -467,6 +515,21 @@
 
             .subtitle {
                 white-space: normal;
+            }
+
+            .pill {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+
+            #pano {
+                height: 46svh;
+                min-height: 300px;
+            }
+
+            #map {
+                height: 46svh;
+                min-height: 310px;
             }
         }
     </style>
@@ -492,7 +555,7 @@
             </div>
             <p class="note">
                 Tip: for local testing, run a tiny local server from this folder:
-                <code>python -m http.server 8000</code>, then open <code>http://localhost:8000/streetguessr.html</code>.
+                <code>python -m http.server 8000</code>, then open <code>http://localhost:8000/index.html</code>.
             </p>
         </div>
     </div>
@@ -559,6 +622,12 @@
             </section>
         </aside>
     </div>
+
+    <nav class="mobile-jump" aria-label="Quick navigation">
+        <a href="#pano">360°</a>
+        <a href="#map">Map</a>
+        <a href="#result">Result</a>
+    </nav>
 
     <div id="toast" class="toast hidden"></div>
 
@@ -1037,6 +1106,8 @@
             els.clearSeenBtn.addEventListener("click", clearSeenLocations);
 
             updateHeader();
+            window.addEventListener("resize", resizeGoogleViews);
+            window.addEventListener("orientationchange", resizeGoogleViews);
         });
 
         function loadGoogleMaps() {
@@ -1087,6 +1158,7 @@
                 panControl: true,
                 zoomControl: true,
                 fullscreenControl: true,
+                scrollwheel: false,
                 pov: { heading: 0, pitch: 0 },
                 zoom: 1
             });
@@ -1098,6 +1170,7 @@
                 streetViewControl: false,
                 mapTypeControl: false,
                 fullscreenControl: true,
+                gestureHandling: "cooperative",
                 clickableIcons: false,
                 restriction: {
                     latLngBounds: { north: 85, south: -85, west: -180, east: 180 },
@@ -1110,7 +1183,17 @@
                 placeGuess(event.latLng);
             });
 
+            resizeGoogleViews();
             showToast("Game loaded. Set your round time and click Start Game.");
+        }
+
+        function resizeGoogleViews() {
+            if (!state.mapsLoaded) return;
+
+            window.requestAnimationFrame(() => {
+                if (state.map) google.maps.event.trigger(state.map, "resize");
+                if (state.panorama) google.maps.event.trigger(state.panorama, "resize");
+            });
         }
 
         async function startGame() {
@@ -1161,6 +1244,7 @@
                 state.panorama.setPano(roundData.panoId);
                 state.panorama.setPov({ heading: Math.floor(Math.random() * 360), pitch: 0 });
                 state.panorama.setZoom(1);
+                resizeGoogleViews();
 
                 state.roundActive = true;
                 state.secondsLeft = clamp(parseInt(els.roundSeconds.value, 10) || 90, 15, 600);
@@ -1396,6 +1480,7 @@
 
             state.map.setCenter({ lat: 18, lng: 0 });
             state.map.setZoom(2);
+            resizeGoogleViews();
         }
 
         function updateHeader() {
