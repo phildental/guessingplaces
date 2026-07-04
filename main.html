@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StreetGuessr — 360° Geography Guessing Game</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #111827;
+            --panel-2: #1f2937;
+            --muted: #94a3b8;
+            --text: #f8fafc;
+            --accent: #38bdf8;
+            --good: #22c55e;
+            --warn: #f59e0b;
+            --bad: #ef4444;
+            --border: rgba(255, 255, 255, .12);
+            --shadow: 0 20px 60px rgba(0, 0, 0, .35);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+            border-radius: 14px;
+            padding: 12px 16px;
+            background: var(--accent);
+            color: #062235;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform .12s ease, filter .12s ease, opacity .12s ease;
+        }
+
+        button:hover {
+            filter: brightness(1.06);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        input {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 11px 12px;
+            background: rgba(255, 255, 255, .08);
+            color: var(--text);
+            outline: none;
+        }
+
+        input:focus {
+            border-color: rgba(56, 189, 248, .65);
+            box-shadow: 0 0 0 4px rgba(56, 189, 248, .12);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .app {
+            min-height: 100%;
+            display: grid;
+            grid-template-columns: 1fr 410px;
+            grid-template-rows: 74px 1fr;
+            grid-template-areas:
+                "top top"
+                "pano side";
+        }
+
+        header {
+            grid-area: top;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(15, 23, 42, .92);
+            backdrop-filter: blur(14px);
+            z-index: 4;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .logo {
+            width: 42px;
+            height: 42px;
+            border-radius: 15px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, #38bdf8, #22c55e);
+            box-shadow: 0 10px 30px rgba(56, 189, 248, .22);
+            color: #061421;
+            font-size: 22px;
+            font-weight: 900;
+            flex: 0 0 auto;
+        }
+
+        h1 {
+            font-size: 20px;
+            line-height: 1.1;
+            margin: 0;
+            letter-spacing: -.03em;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .status {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .06);
+            border-radius: 999px;
+            padding: 9px 12px;
+            color: var(--text);
+            font-weight: 800;
+            font-size: 13px;
+        }
+
+        .pill small {
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        #pano {
+            grid-area: pano;
+            min-height: calc(100vh - 74px);
+            background: #020617;
+            position: relative;
+        }
+
+        .pano-cover {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 30% 20%, rgba(56, 189, 248, .15), transparent 35%),
+                radial-gradient(circle at 70% 70%, rgba(34, 197, 94, .12), transparent 32%);
+            z-index: 2;
+        }
+
+        .cover-card {
+            max-width: 570px;
+            text-align: center;
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, .82);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(18px);
+        }
+
+        .cover-card h2 {
+            margin: 0 0 10px;
+            font-size: 30px;
+            letter-spacing: -.04em;
+        }
+
+        .cover-card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .side {
+            grid-area: side;
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            min-height: calc(100vh - 74px);
+            position: relative;
+            z-index: 3;
+        }
+
+        .controls {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(255, 255, 255, .03);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .button-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .button-row.single {
+            grid-template-columns: 1fr;
+        }
+
+        .secondary {
+            background: rgba(255, 255, 255, .1);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .danger {
+            background: var(--bad);
+            color: white;
+        }
+
+        #map {
+            min-height: 330px;
+            height: 100%;
+            background: #0b1220;
+        }
+
+        .result {
+            border-top: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(31, 41, 55, .9), rgba(17, 24, 39, .98));
+            padding: 16px;
+            max-height: 42vh;
+            overflow: auto;
+        }
+
+        .result h2,
+        .result h3 {
+            margin: 0 0 8px;
+            letter-spacing: -.03em;
+        }
+
+        .result p {
+            margin: 7px 0;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        .big-score {
+            font-size: 36px;
+            font-weight: 950;
+            letter-spacing: -.06em;
+            color: var(--good);
+            line-height: 1;
+        }
+
+        .metric-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 12px 0;
+        }
+
+        .metric {
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .055);
+            border-radius: 16px;
+            padding: 12px;
+        }
+
+        .metric small {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .metric strong {
+            font-size: 18px;
+        }
+
+        .tip {
+            border-left: 4px solid var(--accent);
+            background: rgba(56, 189, 248, .08);
+            border-radius: 14px;
+            padding: 12px 12px 12px 14px;
+            margin-top: 12px;
+        }
+
+        .history {
+            margin-top: 12px;
+            border-top: 1px solid var(--border);
+            padding-top: 12px;
+        }
+
+        .history-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .04);
+            padding: 9px 10px;
+            border-radius: 12px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .setup {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            display: grid;
+            place-items: center;
+            padding: 22px;
+            background:
+                radial-gradient(circle at 25% 15%, rgba(56, 189, 248, .2), transparent 32%),
+                radial-gradient(circle at 78% 80%, rgba(34, 197, 94, .16), transparent 35%),
+                rgba(2, 6, 23, .96);
+        }
+
+        .setup-card {
+            width: min(680px, 100%);
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, .92);
+            border-radius: 26px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .setup-card h2 {
+            margin: 0 0 8px;
+            font-size: 30px;
+            letter-spacing: -.04em;
+        }
+
+        .setup-card p,
+        .setup-card li {
+            color: var(--muted);
+            line-height: 1.52;
+        }
+
+        .setup-actions {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .note {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 12px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 20px;
+            transform: translateX(-50%);
+            z-index: 40;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 12px 14px;
+            border-radius: 14px;
+            box-shadow: var(--shadow);
+            max-width: min(560px, calc(100vw - 32px));
+        }
+
+        @media (max-width: 980px) {
+            .app {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 56vh auto;
+                grid-template-areas:
+                    "top"
+                    "pano"
+                    "side";
+            }
+
+            header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .status {
+                justify-content: flex-start;
+            }
+
+            #pano {
+                min-height: 56vh;
+            }
+
+            .side {
+                min-height: auto;
+                border-left: 0;
+                border-top: 1px solid var(--border);
+            }
+
+            #map {
+                height: 360px;
+            }
+        }
+
+        @media (max-width: 560px) {
+
+            .grid,
+            .button-row,
+            .setup-actions,
+            .metric-row {
+                grid-template-columns: 1fr;
+            }
+
+            .cover-card h2,
+            .setup-card h2 {
+                font-size: 24px;
+            }
+
+            .subtitle {
+                white-space: normal;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="setup" class="setup">
+        <div class="setup-card">
+            <h2>StreetGuessr setup</h2>
+            <p>
+                This game uses the Google Maps JavaScript API for the 360° panorama and map.
+                Paste your API key below, then click <strong>Load Game</strong>.
+            </p>
+            <ol>
+                <li>Enable <strong>Maps JavaScript API</strong> in a Google Cloud project.</li>
+                <li>Enable billing for that project.</li>
+                <li>Use a browser-restricted API key for real deployment.</li>
+            </ol>
+            <label for="apiKey">Google Maps JavaScript API key</label>
+            <div class="setup-actions">
+                <input id="apiKey" type="password" placeholder="Paste API key here" autocomplete="off" />
+                <button id="loadBtn">Load Game</button>
+            </div>
+            <p class="note">
+                Tip: for local testing, run a tiny local server from this folder:
+                <code>python -m http.server 8000</code>, then open <code>http://localhost:8000/streetguessr.html</code>.
+            </p>
+        </div>
+    </div>
+
+    <div class="app" aria-live="polite">
+        <header>
+            <div class="brand">
+                <div class="logo">🌍</div>
+                <div>
+                    <h1>StreetGuessr</h1>
+                    <div class="subtitle">Look around 360°, place your guess, learn one location clue per round.</div>
+                </div>
+            </div>
+            <div class="status">
+                <div class="pill"><small>Round</small><span id="roundStatus">0 / 5</span></div>
+                <div class="pill"><small>Time</small><span id="timer">--:--</span></div>
+                <div class="pill"><small>Total</small><span id="totalScore">0</span></div>
+            </div>
+        </header>
+
+        <main id="pano">
+            <div id="panoCover" class="pano-cover">
+                <div class="cover-card">
+                    <h2>Ready to guess?</h2>
+                    <p>
+                        Click <strong>Start Game</strong>. You will get a random 360° Street View panorama.
+                        Rotate the view, click the map to guess, then submit before the timer ends.
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <aside class="side">
+            <section class="controls">
+                <div class="grid">
+                    <div>
+                        <label for="roundSeconds">Seconds per round</label>
+                        <input id="roundSeconds" type="number" min="15" max="600" step="5" value="90" />
+                    </div>
+                    <div>
+                        <label for="roundCount">Rounds</label>
+                        <input id="roundCount" type="number" min="1" max="50" step="1" value="5" />
+                    </div>
+                </div>
+
+                <div class="button-row">
+                    <button id="startBtn" disabled>Start Game</button>
+                    <button id="submitBtn" disabled>Submit Guess</button>
+                </div>
+                <div class="button-row single" style="margin-top:10px;">
+                    <button id="nextBtn" class="secondary" disabled>Next Round</button>
+                </div>
+            </section>
+
+            <div id="map"></div>
+
+            <section id="result" class="result">
+                <h2>How to play</h2>
+                <p>Use the Street View window to inspect clues. Click the map to place your guess.</p>
+                <p>Your score is based on distance: exact or near-exact guesses can earn up to 5,000 points.</p>
+            </section>
+        </aside>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script>
+        "use strict";
+
+        /*
+          StreetGuessr — single-file demo.
+    
+          Requirements:
+          - A Google Maps JavaScript API key.
+          - The Maps JavaScript API must be enabled.
+          - The script loads the "geometry" library for computeDistanceBetween().
+        */
+
+        const LOCATIONS = [
+            {
+                name: "Osaka urban grid",
+                country: "Japan",
+                lat: 34.6937,
+                lng: 135.5023,
+                radius: 2500,
+                tip: "Japan often has narrow streets, dense overhead utility wiring, compact kei cars, and road-edge mirrors on tight corners."
+            },
+            {
+                name: "Hokkaido roadside",
+                country: "Japan",
+                lat: 43.0642,
+                lng: 141.3469,
+                radius: 6000,
+                tip: "In snowy northern Japan, look for tall red-and-white snow poles and broad road shoulders designed for heavy winter snow."
+            },
+            {
+                name: "Conceição da Aparecida, MG",
+                country: "Brazil",
+                lat: -21.1000,
+                lng: -46.2000,
+                radius: 3500,
+                tip: "Small-town southern Minas: look for red-tile roofs, rolling hills, simple plaster houses, church squares, and narrow local roads through coffee and pasture country."
+            },
+            {
+                name: "Uberlândia, MG",
+                country: "Brazil",
+                lat: -18.9137,
+                lng: -48.2666,
+                radius: 9000,
+                tip: "Large Triângulo Mineiro city: wide avenues, flat-to-gently rolling terrain, modern commercial strips, Brazilian road signage, and lots of red cerrado soil around the outskirts."
+            },
+            {
+                name: "Serra da Canastra, MG",
+                country: "Brazil",
+                lat: -20.2500,
+                lng: -46.5000,
+                radius: 30000,
+                tip: "Serra da Canastra is rural and mountainous: look for dirt roads, waterfalls, open highland grasslands, queijo canastra farms, stone walls, and signs for São Roque de Minas or the national park."
+            },
+            {
+                name: "São José do Rio Preto, SP",
+                country: "Brazil",
+                lat: -20.8202,
+                lng: -49.3797,
+                radius: 8000,
+                tip: "Northwestern São Paulo: hot, flat urban grid, palm-lined avenues, dry-season vegetation, red soil, and SP-style road shields on highways."
+            },
+            {
+                name: "Fortaleza, CE",
+                country: "Brazil",
+                lat: -3.7319,
+                lng: -38.5267,
+                radius: 10000,
+                tip: "Coastal Northeast Brazil: tropical light, sandy roads near beaches, Portuguese signage, colorful low-rise buildings, beach kiosks, and many motorcycles."
+            },
+            {
+                name: "Salvador, BA",
+                country: "Brazil",
+                lat: -12.9747,
+                lng: -38.4767,
+                radius: 10000,
+                tip: "Salvador has hilly coastal streets, colonial façades, colorful buildings, ocean views, dense neighborhoods, and distinctive Bahian street life."
+            },
+            {
+                name: "Canela, RS",
+                country: "Brazil",
+                lat: -29.3618,
+                lng: -50.8127,
+                radius: 5000,
+                tip: "Serra Gaúcha tourist town: cooler climate, pine trees, steep green hills, chalet-style buildings, stone churches, and roads linking to Gramado."
+            },
+            {
+                name: "Farroupilha, RS",
+                country: "Brazil",
+                lat: -29.2246,
+                lng: -51.3510,
+                radius: 6000,
+                tip: "Italian-influenced Serra Gaúcha: vineyards, hilly roads, brick or stone houses, subtropical greenery, and industrial/commercial strips around town."
+            },
+            {
+                name: "Franca, SP",
+                country: "Brazil",
+                lat: -20.5393,
+                lng: -47.4013,
+                radius: 7000,
+                tip: "Northeastern São Paulo plateau: urban hills, shoe-industry warehouses, red soil, coffee countryside nearby, and broad avenues on the city edge."
+            },
+            {
+                name: "Areado, MG",
+                country: "Brazil",
+                lat: -21.3586,
+                lng: -46.1456,
+                radius: 3500,
+                tip: "Small southern Minas town near Furnas country: rolling terrain, modest houses, church-square layout, coffee farms, and rural MG roads."
+            },
+            {
+                name: "Poços de Caldas, MG",
+                country: "Brazil",
+                lat: -21.7854,
+                lng: -46.5620,
+                radius: 7000,
+                tip: "Mountain spa city: steep streets, cooler green hills, historic hotels, thermal-tourism signs, cable-car/tourist infrastructure, and views of the volcanic plateau."
+            },
+            {
+                name: "Passos, MG",
+                country: "Brazil",
+                lat: -20.7204,
+                lng: -46.6101,
+                radius: 7000,
+                tip: "Southwest Minas: medium-sized urban grid, red soil, pastureland, sugarcane/coffee areas, and highways leading toward Furnas and Serra da Canastra."
+            },
+            {
+                name: "São Carlos, SP",
+                country: "Brazil",
+                lat: -22.0154,
+                lng: -47.8911,
+                radius: 8000,
+                tip: "University city in inland São Paulo: rolling terrain, campus areas, research/industrial parks, red soil, and SP highway signage."
+            },
+            {
+                name: "Fernandópolis, SP",
+                country: "Brazil",
+                lat: -20.2834,
+                lng: -50.2466,
+                radius: 6000,
+                tip: "Far northwestern São Paulo: flatter hot landscape, dry-season vegetation, red soil, low-rise neighborhoods, and regional highways through agricultural land."
+            },
+            {
+                name: "Amboise, France",
+                country: "France",
+                lat: 47.4139,
+                lng: 0.9827,
+                radius: 3500,
+                tip: "Loire Valley town: stone houses, slate roofs, narrow historic streets, riverfront roads, château views, French road signs, and vineyard countryside nearby."
+            },
+            {
+                name: "Tours, France",
+                country: "France",
+                lat: 47.3833,
+                lng: 0.6833,
+                radius: 8000,
+                tip: "Larger Loire city: French urban signage, tram lines, pale stone façades, river bridges, dense old-town streets, and flat Loire Valley surroundings."
+            },
+            {
+                name: "Versailles, France",
+                country: "France",
+                lat: 48.8014,
+                lng: 2.1301,
+                radius: 5000,
+                tip: "Paris-region suburb with formal avenues, stone apartment blocks, palace/tourist signage, French plates, and manicured parks or tree-lined boulevards."
+            },
+            {
+                name: "Giverny, France",
+                country: "France",
+                lat: 49.0816,
+                lng: 1.5335,
+                radius: 2500,
+                tip: "Small Normandy village: stone cottages, lush gardens, narrow lanes, tourist signs for Monet’s house and gardens, and rural roads near the Seine valley."
+            },
+            {
+                name: "São Paulo avenue",
+                country: "Brazil",
+                lat: -23.5505,
+                lng: -46.6333,
+                radius: 3500,
+                tip: "Brazilian cities often show Portuguese road words like Rua, Avenida, Rodovia, and frequent black-and-yellow hazard striping."
+            },
+            {
+                name: "Curitiba suburb",
+                country: "Brazil",
+                lat: -25.4284,
+                lng: -49.2733,
+                radius: 3500,
+                tip: "Southern Brazil can feel greener and more temperate; red-tile roofs, Portuguese signs, and concrete utility poles are useful clues."
+            },
+            {
+                name: "Reykjavík coast",
+                country: "Iceland",
+                lat: 64.1466,
+                lng: -21.9426,
+                radius: 5000,
+                tip: "Iceland clues include treeless landscapes, volcanic rock, yellow diamond priority-road signs, and very changeable North Atlantic weather."
+            },
+            {
+                name: "New Zealand rural road",
+                country: "New Zealand",
+                lat: -43.5321,
+                lng: 172.6362,
+                radius: 6000,
+                tip: "New Zealand drives on the left. Rural scenes often include white roadside marker posts with red reflectors and rolling green pasture."
+            },
+            {
+                name: "Auckland suburb",
+                country: "New Zealand",
+                lat: -36.8485,
+                lng: 174.7633,
+                radius: 3500,
+                tip: "New Zealand suburbs often show left-side driving, English signage, hilly streets, and lots of evergreen vegetation."
+            },
+            {
+                name: "Scottish Highlands",
+                country: "United Kingdom",
+                lat: 57.4778,
+                lng: -4.2247,
+                radius: 12000,
+                tip: "In Scotland, look for left-side driving, passing places on narrow roads, stone walls, moorland, and bilingual English/Gaelic signs in some areas."
+            },
+            {
+                name: "London neighborhood",
+                country: "United Kingdom",
+                lat: 51.5072,
+                lng: -0.1276,
+                radius: 3000,
+                tip: "The UK uses left-side driving, yellow rear license plates, and road markings like 'LOOK RIGHT' or 'BUS LANE' in cities."
+            },
+            {
+                name: "Dublin street",
+                country: "Ireland",
+                lat: 53.3498,
+                lng: -6.2603,
+                radius: 3000,
+                tip: "Ireland drives on the left; bilingual Irish/English road signs and many stone walls or hedgerows can help separate it from the UK."
+            },
+            {
+                name: "Bergen rainy street",
+                country: "Norway",
+                lat: 60.3913,
+                lng: 5.3221,
+                radius: 3500,
+                tip: "Norway often has red wooden buildings, fjord or mountain backdrops, dashed yellow center lines, and blue directional signs."
+            },
+            {
+                name: "Stockholm city",
+                country: "Sweden",
+                lat: 59.3293,
+                lng: 18.0686,
+                radius: 3000,
+                tip: "Sweden commonly has yellow center lines on roads, red wooden rural houses, and many signs with letters å, ä, and ö."
+            },
+            {
+                name: "Finnish lakeside road",
+                country: "Finland",
+                lat: 61.4978,
+                lng: 23.7610,
+                radius: 6000,
+                tip: "Finland has many birch and pine forests, flat roads, and signs with doubled vowels or letters like ä and ö."
+            },
+            {
+                name: "Netherlands canal town",
+                country: "Netherlands",
+                lat: 52.3676,
+                lng: 4.9041,
+                radius: 3500,
+                tip: "The Netherlands is very flat and bicycle-heavy. Watch for red bike lanes, canals, brick streets, and yellow license plates."
+            },
+            {
+                name: "Swiss alpine town",
+                country: "Switzerland",
+                lat: 46.9480,
+                lng: 7.4474,
+                radius: 5000,
+                tip: "Switzerland has clean road markings, mountainous backdrops, red Swiss flags, and multilingual clues depending on region."
+            },
+            {
+                name: "Andalusian city",
+                country: "Spain",
+                lat: 37.3891,
+                lng: -5.9845,
+                radius: 3500,
+                tip: "Southern Spain often has dry vegetation, whitewashed walls, terracotta roofs, and road signs using Spanish words like Calle or Carretera."
+            },
+            {
+                name: "Lisbon hills",
+                country: "Portugal",
+                lat: 38.7223,
+                lng: -9.1393,
+                radius: 3500,
+                tip: "Portugal often has blue tile facades, cobblestone sidewalks, Portuguese road words like Rua, and EU-style plates with a yellow strip."
+            },
+            {
+                name: "Athens urban slopes",
+                country: "Greece",
+                lat: 37.9838,
+                lng: 23.7275,
+                radius: 3500,
+                tip: "Greece clues include Greek script, dry Mediterranean vegetation, white buildings, and many balconies with awnings."
+            },
+            {
+                name: "Prague old district",
+                country: "Czechia",
+                lat: 50.0755,
+                lng: 14.4378,
+                radius: 3000,
+                tip: "Czechia often shows red-tiled roofs, tram lines in cities, and road signs with háčeks such as č, š, and ř."
+            },
+            {
+                name: "Warsaw city",
+                country: "Poland",
+                lat: 52.2297,
+                lng: 21.0122,
+                radius: 3500,
+                tip: "Polish signs use letters like ł,ą,ę, and many roads have red-bordered triangular warning signs and concrete utility poles."
+            },
+            {
+                name: "Cape Town coast",
+                country: "South Africa",
+                lat: -33.9249,
+                lng: 18.4241,
+                radius: 5000,
+                tip: "South Africa drives on the left and often has yellow shoulder lines, dry grassland, security walls, and English/Afrikaans place names."
+            },
+            {
+                name: "Nairobi avenue",
+                country: "Kenya",
+                lat: -1.2864,
+                lng: 36.8172,
+                radius: 5000,
+                tip: "Kenya drives on the left. Red soil, tropical vegetation, English/Swahili signs, and matatus or minibuses are common visual clues."
+            },
+            {
+                name: "Singapore street",
+                country: "Singapore",
+                lat: 1.3521,
+                lng: 103.8198,
+                radius: 2500,
+                tip: "Singapore has left-side driving, very clean roads, tropical greenery, multilingual signs, and distinctive high-rise public housing blocks."
+            },
+            {
+                name: "Bangkok canal district",
+                country: "Thailand",
+                lat: 13.7563,
+                lng: 100.5018,
+                radius: 3500,
+                tip: "Thailand drives on the left. Thai script, ornate temples, tropical plants, and colorful taxis or tuk-tuks are strong clues."
+            },
+            {
+                name: "Seoul neighborhood",
+                country: "South Korea",
+                lat: 37.5665,
+                lng: 126.9780,
+                radius: 3000,
+                tip: "South Korea shows Hangul script, dense apartment towers, green or blue road signs, and many utility poles in older neighborhoods."
+            },
+            {
+                name: "Taipei street",
+                country: "Taiwan",
+                lat: 25.0330,
+                lng: 121.5654,
+                radius: 3000,
+                tip: "Taiwan has Traditional Chinese characters, dense scooters, tiled building facades, and tropical-to-subtropical roadside plants."
+            },
+            {
+                name: "Canadian prairie city",
+                country: "Canada",
+                lat: 49.8951,
+                lng: -97.1384,
+                radius: 5000,
+                tip: "Canada often has wide roads, North American signs, bilingual clues in some regions, and very flat prairie landscapes in central provinces."
+            },
+            {
+                name: "Vancouver neighborhood",
+                country: "Canada",
+                lat: 49.2827,
+                lng: -123.1207,
+                radius: 3500,
+                tip: "Coastal British Columbia often looks green and rainy, with conifer trees, mountains nearby, and North American road signs."
+            },
+            {
+                name: "Arizona desert road",
+                country: "United States",
+                lat: 33.4484,
+                lng: -112.0740,
+                radius: 9000,
+                tip: "The U.S. Southwest has dry desert plants like cacti, wide roads, yellow center lines, and large overhead traffic lights."
+            },
+            {
+                name: "Buenos Aires street",
+                country: "Argentina",
+                lat: -34.6037,
+                lng: -58.3816,
+                radius: 3500,
+                tip: "Argentina uses Spanish signage, right-side driving, black-and-white curb paint in some cities, and many plane trees lining avenues."
+            },
+            {
+                name: "Santiago foothills",
+                country: "Chile",
+                lat: -33.4489,
+                lng: -70.6693,
+                radius: 5000,
+                tip: "Chile is long and mountainous; Santiago often has dry air, Andes views, Spanish signs, and black-and-yellow curb or hazard markings."
+            },
+            {
+                name: "Montevideo coast",
+                country: "Uruguay",
+                lat: -34.9011,
+                lng: -56.1645,
+                radius: 3500,
+                tip: "Uruguay can resemble Argentina, but look for coastal rambla roads, Spanish signs, and calmer low-rise neighborhoods around Montevideo."
+            }
+        ];
+
+        const state = {
+            mapsLoaded: false,
+            panorama: null,
+            map: null,
+            streetViewService: null,
+            guessMarker: null,
+            correctMarker: null,
+            line: null,
+            current: null,
+            currentPanoLocation: null,
+            currentRound: 0,
+            totalRounds: 5,
+            totalScore: 0,
+            roundActive: false,
+            roundResolved: false,
+            timer: null,
+            secondsLeft: 0,
+            history: [],
+            usedLocationIndexes: []
+        };
+
+        const els = {
+            setup: document.getElementById("setup"),
+            apiKey: document.getElementById("apiKey"),
+            loadBtn: document.getElementById("loadBtn"),
+            pano: document.getElementById("pano"),
+            panoCover: document.getElementById("panoCover"),
+            map: document.getElementById("map"),
+            result: document.getElementById("result"),
+            startBtn: document.getElementById("startBtn"),
+            submitBtn: document.getElementById("submitBtn"),
+            nextBtn: document.getElementById("nextBtn"),
+            roundSeconds: document.getElementById("roundSeconds"),
+            roundCount: document.getElementById("roundCount"),
+            roundStatus: document.getElementById("roundStatus"),
+            timer: document.getElementById("timer"),
+            totalScore: document.getElementById("totalScore"),
+            toast: document.getElementById("toast")
+        };
+
+        window.initGame = initGame;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const savedKey = localStorage.getItem("streetguessr_google_maps_key");
+            if (savedKey) els.apiKey.value = savedKey;
+
+            els.loadBtn.addEventListener("click", loadGoogleMaps);
+            els.apiKey.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") loadGoogleMaps();
+            });
+
+            els.startBtn.addEventListener("click", startGame);
+            els.submitBtn.addEventListener("click", () => endRound("submitted"));
+            els.nextBtn.addEventListener("click", startRound);
+
+            updateHeader();
+        });
+
+        function loadGoogleMaps() {
+            const key = els.apiKey.value.trim();
+            if (!key) {
+                showToast("Paste a Google Maps JavaScript API key first.");
+                return;
+            }
+
+            localStorage.setItem("streetguessr_google_maps_key", key);
+            els.loadBtn.disabled = true;
+            els.loadBtn.textContent = "Loading...";
+
+            const script = document.createElement("script");
+            const params = new URLSearchParams({
+                key,
+                libraries: "geometry",
+                callback: "initGame",
+                v: "weekly"
+            });
+
+            script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
+            script.async = true;
+            script.defer = true;
+            script.onerror = () => {
+                els.loadBtn.disabled = false;
+                els.loadBtn.textContent = "Load Game";
+                showToast("Could not load Google Maps. Check your API key, billing/API settings, or network connection.");
+            };
+            document.head.appendChild(script);
+        }
+
+        function initGame() {
+            state.mapsLoaded = true;
+            els.setup.classList.add("hidden");
+            els.startBtn.disabled = false;
+
+            state.streetViewService = new google.maps.StreetViewService();
+
+            state.panorama = new google.maps.StreetViewPanorama(els.pano, {
+                visible: true,
+                addressControl: false,
+                showRoadLabels: false,
+                linksControl: false,
+                clickToGo: false,
+                motionTracking: false,
+                motionTrackingControl: false,
+                panControl: true,
+                zoomControl: true,
+                fullscreenControl: true,
+                pov: { heading: 0, pitch: 0 },
+                zoom: 1
+            });
+
+            state.map = new google.maps.Map(els.map, {
+                center: { lat: 18, lng: 0 },
+                zoom: 2,
+                minZoom: 2,
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: true,
+                clickableIcons: false,
+                restriction: {
+                    latLngBounds: { north: 85, south: -85, west: -180, east: 180 },
+                    strictBounds: false
+                }
+            });
+
+            state.map.addListener("click", (event) => {
+                if (!state.roundActive || state.roundResolved) return;
+                placeGuess(event.latLng);
+            });
+
+            showToast("Game loaded. Set your round time and click Start Game.");
+        }
+
+        async function startGame() {
+            state.currentRound = 0;
+            state.totalScore = 0;
+            state.history = [];
+            state.usedLocationIndexes = [];
+            state.totalRounds = clamp(parseInt(els.roundCount.value, 10) || 5, 1, 50);
+
+            els.roundCount.value = state.totalRounds;
+            els.roundSeconds.disabled = true;
+            els.roundCount.disabled = true;
+            els.startBtn.disabled = true;
+
+            renderIntroResult();
+            await startRound();
+        }
+
+        async function startRound() {
+            clearTimer();
+
+            if (state.currentRound >= state.totalRounds) {
+                renderGameOver();
+                return;
+            }
+
+            state.currentRound += 1;
+            state.roundActive = false;
+            state.roundResolved = false;
+            state.current = null;
+            state.currentPanoLocation = null;
+
+            resetMap();
+            els.submitBtn.disabled = true;
+            els.nextBtn.disabled = true;
+            els.panoCover.classList.remove("hidden");
+            els.panoCover.querySelector("h2").textContent = "Loading a 360° panorama...";
+            els.panoCover.querySelector("p").textContent = "Searching for a playable Street View location.";
+
+            updateHeader();
+            renderLoadingResult();
+
+            try {
+                const roundData = await choosePlayablePanorama();
+                state.current = roundData.location;
+                state.currentPanoLocation = roundData.panoLatLng;
+
+                state.panorama.setPano(roundData.panoId);
+                state.panorama.setPov({ heading: Math.floor(Math.random() * 360), pitch: 0 });
+                state.panorama.setZoom(1);
+
+                state.roundActive = true;
+                state.secondsLeft = clamp(parseInt(els.roundSeconds.value, 10) || 90, 15, 600);
+
+                els.panoCover.classList.add("hidden");
+                els.submitBtn.disabled = false;
+
+                startTimer();
+                renderPlayingResult();
+                updateHeader();
+            } catch (error) {
+                console.error(error);
+                renderErrorResult(error.message || "No playable panorama found.");
+                els.startBtn.disabled = false;
+                els.roundSeconds.disabled = false;
+                els.roundCount.disabled = false;
+            }
+        }
+
+        async function choosePlayablePanorama() {
+            let attempts = 0;
+            const maxAttempts = Math.min(LOCATIONS.length, 16);
+
+            while (attempts < maxAttempts) {
+                attempts += 1;
+                const index = pickLocationIndex();
+                const location = LOCATIONS[index];
+
+                try {
+                    const pano = await findPanorama(location);
+                    state.usedLocationIndexes.push(index);
+                    return { location, ...pano };
+                } catch (error) {
+                    console.warn(`No panorama near ${location.name}`, error);
+                }
+            }
+
+            throw new Error("Could not find a playable panorama after several attempts. Try again or add more seed locations.");
+        }
+
+        function pickLocationIndex() {
+            if (state.usedLocationIndexes.length >= LOCATIONS.length) {
+                state.usedLocationIndexes = [];
+            }
+
+            const available = LOCATIONS
+                .map((_, index) => index)
+                .filter(index => !state.usedLocationIndexes.includes(index));
+
+            return available[Math.floor(Math.random() * available.length)];
+        }
+
+        function findPanorama(seed) {
+            return new Promise((resolve, reject) => {
+                state.streetViewService.getPanorama(
+                    {
+                        location: { lat: seed.lat, lng: seed.lng },
+                        radius: seed.radius || 5000,
+                        preference: google.maps.StreetViewPreference.BEST,
+                        source: google.maps.StreetViewSource.OUTDOOR
+                    },
+                    (data, status) => {
+                        if (status !== google.maps.StreetViewStatus.OK || !data || !data.location || !data.location.latLng) {
+                            reject(new Error(status || "ZERO_RESULTS"));
+                            return;
+                        }
+
+                        resolve({
+                            panoId: data.location.pano,
+                            panoLatLng: data.location.latLng
+                        });
+                    }
+                );
+            });
+        }
+
+        function placeGuess(latLng) {
+            if (!state.guessMarker) {
+                state.guessMarker = new google.maps.Marker({
+                    map: state.map,
+                    position: latLng,
+                    draggable: true,
+                    title: "Your guess",
+                    label: {
+                        text: "G",
+                        color: "#ffffff",
+                        fontWeight: "900"
+                    }
+                });
+
+                state.guessMarker.addListener("dragend", () => {
+                    showToast("Guess moved.");
+                });
+            } else {
+                state.guessMarker.setPosition(latLng);
+            }
+
+            els.submitBtn.disabled = false;
+            showToast("Guess placed. Submit when ready.");
+        }
+
+        function startTimer() {
+            clearTimer();
+            updateHeader();
+
+            state.timer = window.setInterval(() => {
+                state.secondsLeft -= 1;
+                updateHeader();
+
+                if (state.secondsLeft <= 0) {
+                    endRound("timeout");
+                }
+            }, 1000);
+        }
+
+        function clearTimer() {
+            if (state.timer) {
+                clearInterval(state.timer);
+                state.timer = null;
+            }
+        }
+
+        function endRound(reason) {
+            if (!state.roundActive || state.roundResolved) return;
+
+            state.roundResolved = true;
+            state.roundActive = false;
+            clearTimer();
+
+            const guessLatLng = state.guessMarker ? state.guessMarker.getPosition() : null;
+            const correctLatLng = state.currentPanoLocation;
+            let distanceMeters = null;
+            let score = 0;
+
+            if (guessLatLng && correctLatLng) {
+                distanceMeters = google.maps.geometry.spherical.computeDistanceBetween(guessLatLng, correctLatLng);
+                score = calculateScore(distanceMeters);
+            }
+
+            state.totalScore += score;
+
+            const historyItem = {
+                round: state.currentRound,
+                locationName: state.current.name,
+                country: state.current.country,
+                distanceMeters,
+                score,
+                reason
+            };
+            state.history.push(historyItem);
+
+            revealAnswer(guessLatLng, correctLatLng);
+            renderRoundResult(historyItem);
+            updateHeader();
+
+            els.submitBtn.disabled = true;
+            els.nextBtn.disabled = state.currentRound >= state.totalRounds ? true : false;
+
+            if (state.currentRound >= state.totalRounds) {
+                window.setTimeout(renderGameOver, 350);
+            }
+        }
+
+        function calculateScore(distanceMeters) {
+            if (!Number.isFinite(distanceMeters)) return 0;
+            if (distanceMeters <= 25) return 5000;
+
+            const distanceKm = distanceMeters / 1000;
+            const score = Math.round(5000 * Math.exp(-distanceKm / 1800));
+            return clamp(score, 0, 5000);
+        }
+
+        function revealAnswer(guessLatLng, correctLatLng) {
+            if (!correctLatLng) return;
+
+            state.correctMarker = new google.maps.Marker({
+                map: state.map,
+                position: correctLatLng,
+                title: "Correct location",
+                label: {
+                    text: "✓",
+                    color: "#ffffff",
+                    fontWeight: "900"
+                }
+            });
+
+            if (guessLatLng) {
+                state.line = new google.maps.Polyline({
+                    map: state.map,
+                    path: [guessLatLng, correctLatLng],
+                    geodesic: true,
+                    strokeOpacity: 0.9,
+                    strokeWeight: 3
+                });
+
+                const bounds = new google.maps.LatLngBounds();
+                bounds.extend(guessLatLng);
+                bounds.extend(correctLatLng);
+                state.map.fitBounds(bounds, 52);
+            } else {
+                state.map.setCenter(correctLatLng);
+                state.map.setZoom(6);
+            }
+        }
+
+        function resetMap() {
+            if (state.guessMarker) {
+                state.guessMarker.setMap(null);
+                state.guessMarker = null;
+            }
+
+            if (state.correctMarker) {
+                state.correctMarker.setMap(null);
+                state.correctMarker = null;
+            }
+
+            if (state.line) {
+                state.line.setMap(null);
+                state.line = null;
+            }
+
+            state.map.setCenter({ lat: 18, lng: 0 });
+            state.map.setZoom(2);
+        }
+
+        function updateHeader() {
+            els.roundStatus.textContent = `${state.currentRound} / ${state.totalRounds}`;
+            els.timer.textContent = state.roundActive ? formatTime(state.secondsLeft) : "--:--";
+            els.totalScore.textContent = formatNumber(state.totalScore);
+        }
+
+        function renderIntroResult() {
+            els.result.innerHTML = `
+        <h2>Game started</h2>
+        <p>Round ${state.currentRound + 1} is coming up. Rotate the panorama, look for clues, then click the map.</p>
+      `;
+        }
+
+        function renderLoadingResult() {
+            els.result.innerHTML = `
+        <h2>Loading round ${state.currentRound}</h2>
+        <p>Finding an outdoor Street View panorama. Some seed locations may not have coverage, so the game retries automatically.</p>
+      `;
+        }
+
+        function renderPlayingResult() {
+            els.result.innerHTML = `
+        <h2>Round ${state.currentRound}</h2>
+        <p>Look for road signs, lane markings, utility poles, plants, terrain, cars, and architecture.</p>
+        <p>Click the map once to place your guess. Drag the marker to adjust it.</p>
+      `;
+        }
+
+        function renderErrorResult(message) {
+            els.panoCover.classList.remove("hidden");
+            els.panoCover.querySelector("h2").textContent = "Could not load a round";
+            els.panoCover.querySelector("p").textContent = message;
+
+            els.result.innerHTML = `
+        <h2>Loading error</h2>
+        <p>${escapeHtml(message)}</p>
+        <p>Check your API key permissions, billing, and Street View availability.</p>
+      `;
+        }
+
+        function renderRoundResult(item) {
+            const distanceText = item.distanceMeters == null
+                ? "No guess placed"
+                : formatDistance(item.distanceMeters);
+
+            const resultTitle = item.reason === "timeout"
+                ? "Time expired"
+                : "Round complete";
+
+            els.result.innerHTML = `
+        <h2>${resultTitle}</h2>
+        <div class="big-score">${formatNumber(item.score)} pts</div>
+        <div class="metric-row">
+          <div class="metric">
+            <small>Distance</small>
+            <strong>${distanceText}</strong>
+          </div>
+          <div class="metric">
+            <small>Correct area</small>
+            <strong>${escapeHtml(item.country)}</strong>
+          </div>
+        </div>
+        <p>The panorama was near <strong>${escapeHtml(item.locationName)}</strong>.</p>
+        <div class="tip">
+          <strong>Clue / curious fact:</strong>
+          <p>${escapeHtml(state.current.tip)}</p>
+        </div>
+        ${renderHistory()}
+      `;
+        }
+
+        function renderGameOver() {
+            clearTimer();
+            state.roundActive = false;
+            state.roundResolved = true;
+
+            els.startBtn.disabled = false;
+            els.nextBtn.disabled = true;
+            els.submitBtn.disabled = true;
+            els.roundSeconds.disabled = false;
+            els.roundCount.disabled = false;
+
+            const average = state.history.length
+                ? Math.round(state.totalScore / state.history.length)
+                : 0;
+
+            els.result.innerHTML = `
+        <h2>Game over</h2>
+        <div class="big-score">${formatNumber(state.totalScore)} pts</div>
+        <div class="metric-row">
+          <div class="metric">
+            <small>Rounds</small>
+            <strong>${state.history.length}</strong>
+          </div>
+          <div class="metric">
+            <small>Average</small>
+            <strong>${formatNumber(average)}</strong>
+          </div>
+        </div>
+        <p>Change the timer or round count, then start a new game.</p>
+        ${renderHistory()}
+      `;
+
+            updateHeader();
+        }
+
+        function renderHistory() {
+            if (!state.history.length) return "";
+
+            const items = state.history
+                .map(item => {
+                    const distance = item.distanceMeters == null ? "No guess" : formatDistance(item.distanceMeters);
+                    return `
+            <div class="history-item">
+              <span>R${item.round}: ${escapeHtml(item.country)} · ${distance}</span>
+              <strong>${formatNumber(item.score)}</strong>
+            </div>
+          `;
+                })
+                .join("");
+
+            return `
+        <div class="history">
+          <h3>Round history</h3>
+          <div class="history-list">${items}</div>
+        </div>
+      `;
+        }
+
+        function formatTime(totalSeconds) {
+            const minutes = Math.floor(Math.max(totalSeconds, 0) / 60);
+            const seconds = Math.max(totalSeconds, 0) % 60;
+            return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+        }
+
+        function formatDistance(meters) {
+            if (!Number.isFinite(meters)) return "Unknown";
+            if (meters < 1000) return `${Math.round(meters)} m`;
+            return `${(meters / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} km`;
+        }
+
+        function formatNumber(number) {
+            return Number(number || 0).toLocaleString();
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        let toastTimer = null;
+        function showToast(message) {
+            els.toast.textContent = message;
+            els.toast.classList.remove("hidden");
+
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = window.setTimeout(() => {
+                els.toast.classList.add("hidden");
+            }, 2800);
+        }
+    </script>
+</body>
+
+</html>
