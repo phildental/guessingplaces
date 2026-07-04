@@ -545,6 +545,9 @@
                 <div class="button-row single" style="margin-top:10px;">
                     <button id="nextBtn" class="secondary" disabled>Next Round</button>
                 </div>
+                <div class="button-row single" style="margin-top:10px;">
+                    <button id="clearSeenBtn" class="secondary" type="button">Clear Saved Cities</button>
+                </div>
             </section>
 
             <div id="map"></div>
@@ -995,6 +998,8 @@
             usedLocationIndexes: []
         };
 
+        const SEEN_LOCATIONS_KEY = "streetguessr_seen_locations_v1";
+
         const els = {
             setup: document.getElementById("setup"),
             apiKey: document.getElementById("apiKey"),
@@ -1006,6 +1011,7 @@
             startBtn: document.getElementById("startBtn"),
             submitBtn: document.getElementById("submitBtn"),
             nextBtn: document.getElementById("nextBtn"),
+            clearSeenBtn: document.getElementById("clearSeenBtn"),
             roundSeconds: document.getElementById("roundSeconds"),
             roundCount: document.getElementById("roundCount"),
             roundStatus: document.getElementById("roundStatus"),
@@ -1028,6 +1034,7 @@
             els.startBtn.addEventListener("click", startGame);
             els.submitBtn.addEventListener("click", () => endRound("submitted"));
             els.nextBtn.addEventListener("click", startRound);
+            els.clearSeenBtn.addEventListener("click", clearSeenLocations);
 
             updateHeader();
         });
@@ -1199,9 +1206,20 @@
                 state.usedLocationIndexes = [];
             }
 
-            const available = LOCATIONS
+            const seenLocations = loadSeenLocations();
+
+            let available = LOCATIONS
                 .map((_, index) => index)
-                .filter(index => !state.usedLocationIndexes.includes(index));
+                .filter(index => !state.usedLocationIndexes.includes(index))
+                .filter(index => !seenLocations[locationKey(LOCATIONS[index])]);
+
+            // If this browser has already seen every saved city, allow repeats again.
+            // The game will still avoid repeats inside the current game.
+            if (!available.length) {
+                available = LOCATIONS
+                    .map((_, index) => index)
+                    .filter(index => !state.usedLocationIndexes.includes(index));
+            }
 
             return available[Math.floor(Math.random() * available.length)];
         }
@@ -1304,6 +1322,7 @@
                 reason
             };
             state.history.push(historyItem);
+            saveSeenLocation(historyItem);
 
             revealAnswer(guessLatLng, correctLatLng);
             renderRoundResult(historyItem);
@@ -1506,6 +1525,43 @@
           <div class="history-list">${items}</div>
         </div>
       `;
+        }
+
+        function locationKey(location) {
+            return `${location.name}||${location.country}`;
+        }
+
+        function loadSeenLocations() {
+            try {
+                return JSON.parse(localStorage.getItem(SEEN_LOCATIONS_KEY)) || {};
+            } catch (error) {
+                console.warn("Could not read saved locations.", error);
+                return {};
+            }
+        }
+
+        function saveSeenLocation(item) {
+            const key = `${item.locationName}||${item.country}`;
+            const seenLocations = loadSeenLocations();
+            const existing = seenLocations[key] || {};
+
+            seenLocations[key] = {
+                name: item.locationName,
+                country: item.country,
+                timesPlayed: (existing.timesPlayed || 0) + 1,
+                bestScore: Math.max(existing.bestScore || 0, item.score || 0),
+                lastScore: item.score || 0,
+                lastDistanceMeters: item.distanceMeters ?? null,
+                lastReason: item.reason,
+                lastPlayedAt: new Date().toISOString()
+            };
+
+            localStorage.setItem(SEEN_LOCATIONS_KEY, JSON.stringify(seenLocations));
+        }
+
+        function clearSeenLocations() {
+            localStorage.removeItem(SEEN_LOCATIONS_KEY);
+            showToast("Saved cities cleared. Future games can use all locations again.");
         }
 
         function formatTime(totalSeconds) {
